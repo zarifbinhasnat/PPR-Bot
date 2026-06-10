@@ -1,0 +1,29 @@
+# --- Core web framework ---
+fastapi
+uvicorn[standard]
+sse-starlette
+
+# --- Config ---
+pydantic-settings
+python-dotenv
+
+# --- PDF processing ---
+pymupdf==1.27.2.3
+
+# --- LLM (Gemini) ---
+google-genai
+
+# --- Embeddings & reranking (CPU torch installed separately, see README) ---
+sentence-transformers
+
+# --- Sparse retrieval ---
+rank-bm25
+
+# --- Utilities ---
+numpy
+tqdm
+
+# --- Testing ---
+pytest
+pytest-asyncio
+httpx
