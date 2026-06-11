@@ -16,6 +16,7 @@ Run it:  uvicorn ppr_bot.api.main:app --reload
 Then open http://localhost:8000 for the chat UI, /docs for the API explorer.
 """
 
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -29,6 +30,11 @@ from ppr_bot.chat.orchestrator import ChatOrchestrator
 from ppr_bot.config import settings
 from ppr_bot.llm_client import get_client
 from ppr_bot.retrieval.pipeline import RetrievalPipeline
+
+# Force UTF-8 stdout so startup logs containing Bangla or punctuation like the
+# em-dash don't crash on Windows' default cp932 console (the offline scripts do
+# the same). Without this, a single "—" in a log line aborts server startup.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 FRONTEND_DIR = Path(__file__).resolve().parents[3] / "frontend"
 

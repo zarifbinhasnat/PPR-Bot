@@ -25,10 +25,28 @@ from ppr_bot.api.schemas import ChatRequest, HistoryResponse, Turn
 router = APIRouter(tags=["chat"])
 
 
+# Shown (as a normal streamed answer) when someone chats before the offline
+# pipeline has produced an index, so the orchestrator isn't loaded yet.
+_NOT_READY_MESSAGE = (
+    "I'm not ready yet — the knowledge base is still being built "
+    "(extraction → chunking → enrichment → indexing). Please try again once "
+    "indexing has finished and the server has restarted."
+)
+
+
 @router.post("/chat")
 async def chat(request: Request, body: ChatRequest) -> EventSourceResponse:
     """Stream a grounded answer for `body.message` as SSE events."""
     orchestrator = request.app.state.orchestrator
+
+    async def not_ready_stream():
+        # Same event shape the client already knows, so the UI renders this as
+        # an ordinary bot message instead of erroring on a dead stream.
+        yield {"event": "token", "data": json.dumps({"type": "token", "text": _NOT_READY_MESSAGE}, ensure_ascii=False)}
+        yield {"event": "done", "data": json.dumps({"type": "done"}, ensure_ascii=False)}
+
+    if orchestrator is None:
+        return EventSourceResponse(not_ready_stream())
 
     async def event_stream():
         # The orchestrator is synchronous (LLM SDK + CPU models). Run each

@@ -20,7 +20,10 @@ from google import genai
 
 from ppr_bot.chat.memory import ConversationStore
 from ppr_bot.config import settings
-from ppr_bot.generation.answer_generator import generate_answer_stream
+from ppr_bot.generation.answer_generator import (
+    generate_answer_stream,
+    generate_suggestions,
+)
 from ppr_bot.retrieval.pipeline import RetrievalPipeline
 from ppr_bot.retrieval.query_transform import condense_query
 
@@ -44,9 +47,10 @@ class ChatOrchestrator:
         """Process one user message, yielding event dicts.
 
         Event shapes (consumed by the API/SSE layer):
-            {"type": "query",    "query": <standalone query>}
-            {"type": "citations","citations": [ {...}, ... ]}
-            {"type": "token",    "text": <delta>}
+            {"type": "query",      "query": <standalone query>}
+            {"type": "citations",  "citations": [ {...}, ... ]}
+            {"type": "token",      "text": <delta>}
+            {"type": "suggestions","suggestions": [<str>, ...]}
             {"type": "done"}
         """
         history = self.memory.get_history(session_id)[-_HISTORY_WINDOW:]
@@ -79,7 +83,19 @@ class ChatOrchestrator:
             answer_parts.append(delta)
             yield {"type": "token", "text": delta}
 
+        answer = "".join(answer_parts)
+
         # 5. Persist the turn (use the ORIGINAL user message in history).
         self.memory.append_turn(session_id, "user", message)
-        self.memory.append_turn(session_id, "assistant", "".join(answer_parts))
+        self.memory.append_turn(session_id, "assistant", answer)
+
+        # 6. Suggest a few natural follow-up questions for the UI's chips.
+        #    Best-effort and cheap (AUX model); never blocks the answer above,
+        #    and yields nothing useful if the daily quota is spent.
+        suggestions = generate_suggestions(
+            standalone, answer, self.client, settings.GEMINI_AUX_MODEL
+        )
+        if suggestions:
+            yield {"type": "suggestions", "suggestions": suggestions}
+
         yield {"type": "done"}

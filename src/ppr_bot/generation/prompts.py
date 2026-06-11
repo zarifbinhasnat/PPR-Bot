@@ -109,3 +109,30 @@ from the context when you state a fact.
 (e.g. "প্রদত্ত অংশে এই তথ্য পাওয়া যায়নি" / "The provided context does not \
 cover this") instead of guessing.
 - Be concise and precise, as befits a legal reference."""
+
+
+# Used by generation/answer_generator.py (suggested follow-up questions).
+#
+# After answering, we ask a cheap model to propose a few natural next
+# questions so the UI can show them as tappable suggestion chips (the
+# KakaoTalk-style "quick replies" in the design). Returning these from the
+# API — rather than hardcoding them in the frontend — keeps them relevant to
+# the actual conversation. JSON output makes parsing robust.
+SUGGEST_FOLLOWUPS_PROMPT = """\
+You assist users of the Bangladesh Public Procurement Rules (PPR) 2025.
+
+Given the user's question and the assistant's answer below, propose 3 SHORT, \
+natural follow-up questions the user is likely to ask next. Each must:
+- be self-contained and answerable from the PPR 2025,
+- stay on the topic of public procurement,
+- be at most ~8 words,
+- be written in the SAME language as the user's question (Bangla or English).
+
+User question:
+{question}
+
+Assistant answer:
+{answer}
+
+Return ONLY a JSON array of 3 strings, nothing else. Example:
+["First follow-up?", "Second follow-up?", "Third follow-up?"]"""

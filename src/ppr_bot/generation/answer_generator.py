@@ -10,12 +10,15 @@ We stream the answer token-by-token so the UI can render it as it arrives,
 which is what makes a chat feel responsive.
 """
 
+import json
+import re
+import sys
 from collections.abc import Iterator
 
 from google import genai
 from google.genai import types
 
-from ppr_bot.generation.prompts import RAG_SYSTEM_PROMPT
+from ppr_bot.generation.prompts import RAG_SYSTEM_PROMPT, SUGGEST_FOLLOWUPS_PROMPT
 
 
 def format_context(chunks: list[dict]) -> str:
@@ -63,3 +66,49 @@ def generate_answer_stream(
     for event in stream:
         if event.text:
             yield event.text
+
+
+def _parse_suggestions(raw: str) -> list[str]:
+    """Pull a JSON array of strings out of a model response.
+
+    Models sometimes wrap JSON in ```json fences or add stray prose, so we
+    locate the first '[' ... ']' span and parse that, then keep only short
+    non-empty strings. Returns [] if nothing usable is found.
+    """
+    if not raw:
+        return []
+    match = re.search(r"\[.*\]", raw, re.DOTALL)
+    if not match:
+        return []
+    try:
+        items = json.loads(match.group(0))
+    except (ValueError, TypeError):
+        return []
+    out: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            text = item.strip()
+            if text and len(text) <= 80:
+                out.append(text)
+    return out[:3]
+
+
+def generate_suggestions(
+    question: str,
+    answer: str,
+    client: genai.Client,
+    model: str,
+) -> list[str]:
+    """Return up to 3 suggested follow-up questions (empty list on failure).
+
+    This powers the suggestion chips in the chat UI. It's best-effort: a
+    failure here (including a daily-quota 429) must never break a turn, so we
+    swallow errors and just return no suggestions — the UI then shows none.
+    """
+    prompt = SUGGEST_FOLLOWUPS_PROMPT.format(question=question, answer=answer)
+    try:
+        response = client.models.generate_content(model=model, contents=prompt)
+        return _parse_suggestions(response.text or "")
+    except Exception as exc:  # non-fatal — suggestions are a nice-to-have
+        print(f"[warn] follow-up suggestion generation failed: {exc}", file=sys.stderr)
+        return []

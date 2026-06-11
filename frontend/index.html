@@ -1,28 +1,64 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PPR-Bot — Public Procurement Rules 2025</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <title>PPR-Bot · Public Procurement Rules 2025</title>
+  <!-- Design tokens first (colours, type, spacing), then component styles. -->
+  <link rel="stylesheet" href="/static/css/tokens.css" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
-  <header>
-    <h1>PPR-Bot</h1>
-    <p>Ask about the Public Procurement Rules (PPR) 2025 · পাবলিক প্রকিউরমেন্ট বিধিমালা, ২০২৫</p>
-  </header>
+  <!-- The "phone" app shell: header · chat · composer, with sheets layered on top.
+       Most of the conversation is built by chat.js; this is the static frame. -->
+  <div class="app" id="app">
 
-  <main id="chat"></main>
+    <!-- Header -->
+    <header class="header">
+      <span class="avatar" aria-hidden="true">
+        <!-- Bot mark: ink speech bubble with a yellow approval tick -->
+        <svg viewBox="0 0 48 48" fill="none">
+          <path d="M11 12h26a6 6 0 0 1 6 6v13a6 6 0 0 1-6 6H23l-10 7v-7h-2a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6z" fill="var(--ink-900)"/>
+          <path d="M18 25l5 5 10-12" stroke="var(--brand)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </span>
+      <div class="header__id">
+        <div class="header__name">PPR-Bot</div>
+        <div class="header__status" id="status-line">● Online · PPR 2025</div>
+      </div>
+      <span class="badge">Beta</span>
+      <button class="icon-btn" id="info-btn" aria-label="About PPR-Bot">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+    </header>
 
-  <form id="composer">
-    <input
-      id="input"
-      type="text"
-      autocomplete="off"
-      placeholder="Ask a question in Bangla or English…"
-    />
-    <button type="submit" id="send">Send</button>
-  </form>
+    <!-- Conversation -->
+    <main class="chat" id="chat" aria-live="polite"></main>
+
+    <!-- Composer -->
+    <form class="composer" id="composer">
+      <div class="composer__pill">
+        <input
+          id="input"
+          type="text"
+          autocomplete="off"
+          placeholder="Ask in Bangla or English…"
+        />
+        <button type="submit" class="send-btn" id="send" aria-label="Send">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 12l16-8-6 8 6 8-16-8z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    </form>
+
+    <!-- Sheets get injected here by chat.js -->
+    <div id="sheet-root"></div>
+  </div>
 
   <script src="/static/js/chat.js"></script>
 </body>

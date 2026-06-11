@@ -1,0 +1,194 @@
+/* ============================================================
+   PPR-Bot · Design tokens
+   ------------------------------------------------------------
+   Ported verbatim from the "PPR-Bot Design System" handoff
+   (claude.ai/design). Bold black + yellow, KakaoTalk-warm: yellow
+   is the brand signal (user bubbles, primary actions); ink is a
+   warm near-black that pairs with yellow without going cold; paper
+   is a soft cream that carries the doodle texture.
+
+   These are the single source of truth for colour/type/spacing.
+   Components in style.css reference ONLY these custom properties,
+   so re-theming = edit this file.
+   ============================================================ */
+
+/* --- Google Fonts (substitutions chosen by the design system) ---
+   Plus Jakarta Sans : Latin UI + body (friendly geometric sans)
+   Hind Siliguri      : Bangla (বাংলা) — standard BD government UI face
+   Space Mono         : rule numbers, gazette page refs, metadata     */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
+
+:root {
+  /* === Brand yellow (the KakaoTalk signal) === */
+  --yellow-100: #FFF8C2;
+  --yellow-200: #FFF06B;
+  --yellow-300: #FFE94A;
+  --yellow-400: #FFE500; /* BRAND — user bubbles, primary fill */
+  --yellow-500: #F6D200; /* hover on yellow */
+  --yellow-600: #E6B800; /* pressed / darker */
+  --yellow-700: #B98E00; /* yellow text on light (AA) */
+
+  /* === Warm ink (near-black, slightly warm to sit with yellow) === */
+  --ink-900: #16140C; /* primary text, dark surfaces */
+  --ink-800: #211F16;
+  --ink-700-solid: #343124;
+  --ink-500: #5E5A49; /* secondary text */
+  --ink-400: #8A8573; /* muted / placeholder */
+  --ink-300: #B8B3A1;
+  --ink-200: #DAD6C7;
+  --ink-100: #ECE9DD; /* hairline borders */
+  --ink-700: var(--ink-700-solid);
+
+  /* === Paper / surfaces === */
+  --paper:   #FCFBF5; /* app background (doodle canvas) */
+  --paper-2: #F4F1E6; /* sunken / inset panels */
+  --paper-400: #F8F5EC;
+  --paper-500: var(--paper-2);
+  --white:   #FFFFFF; /* bot bubbles, cards */
+
+  /* === Semantic === */
+  --green-500: #1E9E5A; /* grounded / verified source */
+  --green-100: #E2F4E9;
+  --red-500:   #E0473C;
+  --red-100:   #FBE6E2;
+  --amber-500: #E8920C;
+  --amber-100: #FBEDD2;
+  --blue-500:  #2C6BD6;
+  --blue-100:  #E2ECFB;
+
+  /* === Official / Seal (government blue-green) === */
+  --seal-600: #0E6B5B;
+  --seal-500: #128C74; /* official badge, "gov verified" */
+  --seal-100: #D7F0EB;
+
+  /* === Grounded / RAG-verified green === */
+  --grounded-500: var(--green-500);
+  --grounded-100: var(--green-100);
+  --warn-500: var(--amber-500);
+  --warn-100: var(--amber-100);
+
+  /* === Semantic aliases — reference THESE in components === */
+  --brand: var(--yellow-400);
+
+  /* Text */
+  --text-strong:    var(--ink-900);
+  --text-body:      var(--ink-800);
+  --text-muted:     var(--ink-500);
+  --text-subtle:    var(--ink-400);
+  --text-on-yellow: var(--ink-900);
+  --text-on-brand:  var(--ink-900);
+  --text-on-ink:    #FBF7E8;
+  --text-on-dark:   #FBF7E8;
+  --text-link:      var(--blue-500);
+
+  /* Surfaces */
+  --surface-app:   var(--paper);
+  --surface-inset: var(--paper-2);
+  --surface-card:  var(--white);
+  --surface-dark:  var(--ink-900);
+  --surface-brand: var(--yellow-400);
+  --bg-raised:     var(--white);
+
+  /* Chat bubbles */
+  --bubble-user:       var(--yellow-400);
+  --bubble-user-text:  var(--ink-900);
+  --bubble-bot:        var(--white);
+  --bubble-bot-text:   var(--ink-800);
+  --bubble-bot-border: var(--ink-100);
+
+  /* Lines & borders */
+  --border-hairline: var(--ink-100);
+  --border-divider:  var(--ink-200);
+  --border-strong:   var(--ink-900);
+  --border-focus:    var(--ink-900);
+
+  /* States */
+  --focus-ring: 0 0 0 3px rgba(255, 229, 0, 0.55);
+
+  /* === Typography === */
+  --font-sans:    "Plus Jakarta Sans", "Hind Siliguri", system-ui, sans-serif;
+  --font-bangla:  "Hind Siliguri", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono:    "Space Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-display: "Plus Jakarta Sans", "Hind Siliguri", system-ui, sans-serif;
+  --font-ui:      var(--font-sans);
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extra: 800;
+
+  --text-2xs: 11px;
+  --text-xs:  12px;
+  --text-sm:  13px;
+  --text-base: 15px; /* message body */
+  --text-md:  17px;
+  --text-lg:  20px;
+  --text-xl:  24px;
+
+  --fs-2xs:  var(--text-2xs);
+  --fs-xs:   var(--text-xs);
+  --fs-sm:   var(--text-sm);
+  --fs-ui:   var(--text-base);
+  --fs-body: var(--text-base);
+  --fs-h3:   var(--text-md);
+  --fs-h2:   var(--text-lg);
+  --fs-h1:   var(--text-xl);
+
+  --fw-regular:  var(--weight-regular);
+  --fw-medium:   var(--weight-medium);
+  --fw-semibold: var(--weight-semibold);
+  --fw-bold:     var(--weight-bold);
+  --fw-extra:    var(--weight-extra);
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65; /* Bangla legal text reads better looser */
+  --lh-tight:  var(--leading-tight);
+  --lh-snug:   var(--leading-snug);
+  --lh-body:   var(--leading-normal);
+  --lh-bangla: var(--leading-relaxed);
+
+  --tracking-tight: -0.02em;
+  --tracking-caps:  0.08em;
+
+  /* === Spacing (4px base) === */
+  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;  --space-4: 8px;
+  --space-5: 12px; --space-6: 16px; --space-7: 20px; --space-8: 24px;
+  --space-9: 32px; --space-10: 40px; --space-11: 48px; --space-12: 64px;
+
+  /* === Radii — bubbles are generously rounded === */
+  --radius-xs:  6px;
+  --radius-sm:  10px;
+  --radius-md:  14px;
+  --radius-lg:  18px; /* chat bubbles, cards */
+  --radius-xl:  24px;
+  --radius-2xl: 32px;
+  --radius-pill: 999px;
+  --radius-bubble-tail: 4px; /* pinched corner on the bubble tail */
+
+  /* === Soft elevation === */
+  --shadow-xs:     0 1px 2px rgba(22, 20, 12, 0.06);
+  --shadow-sm:     0 2px 6px rgba(22, 20, 12, 0.07);
+  --shadow-md:     0 6px 18px rgba(22, 20, 12, 0.09);
+  --shadow-lg:     0 16px 40px rgba(22, 20, 12, 0.13);
+  --shadow-bubble: 0 2px 6px rgba(22, 20, 12, 0.08);
+  --shadow-inset:  inset 0 1px 3px rgba(22, 20, 12, 0.05);
+
+  /* === Brand "sticker" shadow — hard offset in ink === */
+  --shadow-pop:    3px 3px 0 var(--ink-900);
+  --shadow-pop-sm: 2px 2px 0 var(--ink-900);
+  --shadow-pop-lg: 5px 5px 0 var(--ink-900);
+
+  /* === Motion === */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+
+  /* === Layout === */
+  --app-max: 480px; /* messenger column width on desktop */
+  --tap-min: 44px;  /* min touch target */
+}
