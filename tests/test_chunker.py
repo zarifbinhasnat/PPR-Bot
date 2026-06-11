@@ -39,3 +39,49 @@ def test_chunks_have_breadcrumb_and_metadata():
     assert "source_pages" in sample.metadata
     # Breadcrumb is prepended to the chunk text.
     assert sample.text.startswith("[")
+
+
+# Real OCR output sprinkles repeated Gazette page furniture (printed-page
+# comments, running headers, price stamps, issue numbers) right at page
+# boundaries — including mid-section, where it would otherwise interrupt a
+# chunk's body text. parse_markdown should drop all of it.
+FURNITURE_SAMPLE = """<!-- page: 1 -->
+# প্রথম অংশ
+## প্রথম অধ্যায়
+### ১। সংক্ষিপ্ত শিরোনাম।—
+<!-- gazette_page: ৯৫৬০ -->
+বাংলাদেশ গেজেট, অতিরিক্ত, সেপ্টেম্বর ২৮, ২০২৩
+(৯৫৫১)
+মূল্য : টাকা ২২৪.০০
+(১) এই বিধিমালা পাবলিক প্রকিউরমেন্ট বিধিমালা, ২০২৫ নামে অভিহিত হইবে।
+১৬০৪ বাংলাদেশ গেজেট, অতিরিক্ত, সেপ্টেম্বর ২৮, ২০২৫
+(২) ইহা অবিলম্বে কার্যকর হইবে।
+<!-- page: 2 -->
+"""
+
+
+def test_gazette_furniture_is_stripped():
+    sections = parse_markdown(FURNITURE_SAMPLE)
+    rule1 = next(s for s in sections if s.title.startswith("১।"))
+    text = rule1.text
+    assert "gazette_page" not in text
+    assert "বাংলাদেশ গেজেট" not in text
+    assert "মূল্য" not in text
+    assert "৯৫৫১" not in text
+    # The real content on either side of the furniture must survive intact.
+    assert "(১) এই বিধিমালা" in text
+    assert "(২) ইহা অবিলম্বে কার্যকর হইবে।" in text
+
+
+def test_subrule_reference_in_parens_is_not_stripped():
+    # "(১০)" style sub-rule references (1-3 digits) must NOT be treated as
+    # furniture, even though they look superficially like "(৯৫৫১)".
+    sample = """<!-- page: 1 -->
+# প্রথম অংশ
+## প্রথম অধ্যায়
+### ২। সংজ্ঞার্থ।—
+(১০) 'কল অফ' অর্থ এই বিধিমালার অধীন পুনঃপুন ক্রয়।
+"""
+    sections = parse_markdown(sample)
+    rule = next(s for s in sections if s.title.startswith("২।"))
+    assert "(১০)" in rule.text

@@ -16,6 +16,13 @@ its full ancestry path and the source PDF page(s) it spans.
 We parse manually (not with a Markdown library) because we need two things a
 generic parser won't give us cheaply: the running heading-path breadcrumb,
 and the `<!-- page: N -->` markers that let chunks cite their source page.
+
+We also strip "Gazette page furniture" here (see `_is_furniture_line`):
+boilerplate that the printed Gazette repeats on every page (a running
+header, the OCR-emitted printed-page-number comment, a cover-page price
+stamp) and that has nothing to do with the Rules themselves. Because pages
+are concatenated and then chunked, this furniture would otherwise land in
+the MIDDLE of a chunk's body text right at a page boundary.
 """
 
 import re
@@ -25,6 +32,39 @@ from dataclasses import dataclass, field
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 # Matches our page-boundary marker injected during extraction.
 _PAGE_MARKER_RE = re.compile(r"^<!--\s*page:\s*(\d+)\s*-->\s*$")
+
+# --- Gazette "page furniture" patterns --------------------------------------
+# Per the OCR prompt (generation/prompts.py), the model emits an HTML comment
+# `<!-- gazette_page: NNNN -->` whenever it sees a printed Gazette page number,
+# and faithfully transcribes the running header/footer text repeated on every
+# physical page. None of this is part of the Public Procurement Rules:
+#   - `<!-- gazette_page: ৯৫৬০ -->`              -- printed page-number comment
+#   - "বাংলাদেশ গেজেট, অতিরিক্ত, সেপ্টেম্বর ২৮, ২০২৫" -- running header
+#     (sometimes with a page number glued onto the same line, e.g.
+#     "১৬০৪ বাংলাদেশ গেজেট, অতিরিক্ত, ...")
+#   - "মূল্য : টাকা ২২৪.০০"                       -- cover-page price stamp
+#   - "(৯৫৫১)"                                    -- standalone issue number
+# This phrase ("বাংলাদেশ গেজেট, অতিরিক্ত,") never occurs inside actual rule
+# text, so matching on it is safe. The standalone-parenthesised-number check
+# is restricted to 4+ Bangla digits so it can't accidentally eat a real
+# sub-rule reference like "(১০)".
+_GAZETTE_COMMENT_RE = re.compile(r"<!--\s*gazette_page:.*-->")
+_GAZETTE_HEADER_RE = re.compile(r"বাংলাদেশ\s*গেজেট,\s*অতিরিক্ত,")
+_PRICE_STAMP_RE = re.compile(r"মূল্য\s*:\s*টাকা")
+_ISSUE_NUMBER_RE = re.compile(r"^\([০-৯]{4,}\)$")
+
+
+def _is_furniture_line(line: str) -> bool:
+    """True if `line` is repeated Gazette page furniture, not PPR content."""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    return bool(
+        _GAZETTE_COMMENT_RE.search(stripped)
+        or _GAZETTE_HEADER_RE.search(stripped)
+        or _PRICE_STAMP_RE.search(stripped)
+        or _ISSUE_NUMBER_RE.match(stripped)
+    )
 
 
 @dataclass
@@ -78,6 +118,9 @@ def parse_markdown(markdown: str) -> list[Section]:
         current = None
 
     for raw_line in markdown.splitlines():
+        if _is_furniture_line(raw_line):
+            continue
+
         page_match = _PAGE_MARKER_RE.match(raw_line)
         if page_match:
             current_page = int(page_match.group(1))
