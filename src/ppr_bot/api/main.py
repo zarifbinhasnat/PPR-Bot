@@ -22,12 +22,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from google import genai
 
 from ppr_bot.api import routes_chat, routes_health
 from ppr_bot.chat.memory import InMemoryConversationStore
 from ppr_bot.chat.orchestrator import ChatOrchestrator
 from ppr_bot.config import settings
+from ppr_bot.llm_client import get_client
 from ppr_bot.retrieval.pipeline import RetrievalPipeline
 
 FRONTEND_DIR = Path(__file__).resolve().parents[3] / "frontend"
@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     if settings.embeddings_path.exists() and settings.bm25_index_path.exists():
         print("Loading retrieval pipeline (embedder + reranker + indexes)...")
         pipeline = RetrievalPipeline()  # loads models + indexes (slow, once)
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        client = get_client()
         app.state.orchestrator = ChatOrchestrator(pipeline, memory, client)
         print("Startup complete. Ready to serve.")
     else:

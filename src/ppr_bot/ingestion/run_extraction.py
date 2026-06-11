@@ -31,11 +31,11 @@ import time
 from pathlib import Path
 
 import fitz
-from google import genai
 
 from ppr_bot.config import settings
 from ppr_bot.ingestion.ocr_transcriber import transcribe_page
 from ppr_bot.ingestion.pdf_renderer import render_pdf_to_images
+from ppr_bot.llm_client import get_client
 
 # Force UTF-8 stdout so progress lines with Bangla don't crash on Windows.
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -65,7 +65,7 @@ def _page_markdown_path(page_number: int) -> Path:
 def extract_pages(start: int, end: int, resume: bool) -> None:
     """Render + OCR pages [start, end] (1-indexed, inclusive)."""
     settings.pages_markdown_dir.mkdir(parents=True, exist_ok=True)
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    client = get_client()
     manifest = _load_manifest()
 
     for page_number in range(start, end + 1):
@@ -102,6 +102,19 @@ def extract_pages(start: int, end: int, resume: bool) -> None:
         except Exception as exc:
             manifest[key] = f"error: {exc}"
             print(f"[FAIL] page {page_number}: {exc}")
+            _save_manifest(manifest)
+            # If we've exhausted the daily free quota, every remaining page
+            # will fail the same way — stop now instead of churning through
+            # hundreds of doomed retries. The run is resumable, so tomorrow's
+            # `--resume` continues from here.
+            if "RESOURCE_EXHAUSTED" in str(exc) or "429" in str(exc):
+                print(
+                    "\nDaily free quota appears exhausted. Stopping. "
+                    "Re-run with --resume after the quota resets "
+                    "(midnight US Pacific time)."
+                )
+                return
+            continue
         finally:
             _save_manifest(manifest)  # persist after every page
 

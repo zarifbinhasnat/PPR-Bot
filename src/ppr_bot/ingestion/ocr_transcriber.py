@@ -42,18 +42,15 @@ def _looks_degenerate(text: str) -> str | None:
         return "contains a long single-character run — likely a repetition loop"
     return None
 
-# Tried in order. If the configured primary model is overloaded OR has run out
-# of its free daily quota, we fall through to these. Ordering matters and was
-# determined empirically (scripts/diag_quota.py):
-#   - The "-latest" aliases now point to brand-new premium models
-#     (e.g. gemini-flash-latest -> gemini-3.5-flash) whose FREE-tier daily cap
-#     is only ~20 requests/day — useless for a 271-page job.
-#   - The "*-flash-lite" models have a far higher free daily cap (~1000/day),
-#     so they are the workhorses here.
+# Tried in order after the configured primary model. We deliberately use ONLY
+# the full "flash" models for OCR: the cheap "*-flash-lite" models garble the
+# rendered Bangla into romanized mojibake and occasionally fall into character
+# repetition loops (see scripts/diag_quota.py and the _looks_degenerate guard
+# below), so they are unsafe for transcribing this legal text. The trade-off is
+# that the full models have a small free-tier daily cap (~20/day each), so on a
+# free key the job spans several days; the run is resumable, so that's fine.
 # All are vision-capable; the local bge embed/rerank models are unaffected.
 FALLBACK_MODELS = [
-    "gemini-2.5-flash-lite",
-    "gemini-flash-lite-latest",
     "gemini-2.5-flash",
     "gemini-flash-latest",
 ]
@@ -104,10 +101,22 @@ def transcribe_page(
                 return text
             except Exception as exc:  # broad: covers SDK + transport errors
                 last_error = exc
+                err_str = str(exc)
+                if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
+                    # This model's free DAILY quota is gone for the rest of
+                    # the day — retrying it (even with backoff) cannot help,
+                    # and the per-day reset is hours away, not seconds. Stop
+                    # wasting retries on this model and try the next one
+                    # immediately.
+                    break
                 if attempt < max_retries:
                     time.sleep(retry_delay_seconds * attempt)
 
+    # Include the last error's text directly in the message (not just via
+    # `from`) so callers that only inspect str(exc) — like run_extraction's
+    # quota-exhaustion check — can still see e.g. "429 RESOURCE_EXHAUSTED".
     raise RuntimeError(
         f"Failed to transcribe {image_path.name} after trying "
-        f"{models_to_try} ({max_retries} attempts each)"
+        f"{models_to_try} ({max_retries} attempts each). "
+        f"Last error: {last_error}"
     ) from last_error

@@ -18,10 +18,9 @@ import argparse
 import json
 import sys
 
-from google import genai
-
 from ppr_bot.config import settings
 from ppr_bot.enrichment.contextualizer import build_indexed_text, generate_context
+from ppr_bot.llm_client import get_client
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -48,7 +47,7 @@ def main() -> None:
         raise SystemExit(f"{settings.chunks_path} not found. Run chunking first.")
 
     chunks = _load_chunks()
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    client = get_client()
 
     targets = chunks if args.limit is None else chunks[: args.limit]
     done = 0
