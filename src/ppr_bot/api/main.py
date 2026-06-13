@@ -54,6 +54,11 @@ async def lifespan(app: FastAPI):
     if settings.embeddings_path.exists() and settings.bm25_index_path.exists():
         print("Loading retrieval pipeline (embedder + reranker + indexes)...")
         pipeline = RetrievalPipeline()  # loads models + indexes (slow, once)
+        # Force the embedder + reranker to actually load now (they're
+        # lazy/cached), with a throwaway query — so the FIRST real user
+        # question doesn't eat the one-time model-load cost.
+        print("Warming models...")
+        pipeline.retrieve("warmup")
         client = get_client()
         app.state.orchestrator = ChatOrchestrator(pipeline, memory, client)
         print("Startup complete. Ready to serve.")

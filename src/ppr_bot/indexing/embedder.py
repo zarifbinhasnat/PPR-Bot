@@ -12,9 +12,11 @@ free, and runs locally on CPU. It outputs 1024-dimensional vectors.
 The model (~2.2GB) is downloaded automatically on first use and cached.
 """
 
+import os
 from functools import cached_property
 
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 
 from ppr_bot.config import settings
@@ -35,6 +37,8 @@ class Embedder:
 
     @cached_property
     def _model(self) -> SentenceTransformer:
+        # Use all physical CPU cores (torch otherwise defaults to half).
+        torch.set_num_threads(os.cpu_count() or 4)
         # device="cpu" because we install the CPU build of torch.
         return SentenceTransformer(self.model_name, device="cpu")
 

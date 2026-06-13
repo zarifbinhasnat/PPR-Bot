@@ -15,8 +15,10 @@ two-stage pattern is standard in modern RAG.
 bge-reranker-v2-m3 is multilingual (Bangla + English), matching our embedder.
 """
 
+import os
 from functools import cached_property
 
+import torch
 from sentence_transformers import CrossEncoder
 
 from ppr_bot.config import settings
@@ -30,7 +32,14 @@ class Reranker:
 
     @cached_property
     def _model(self) -> CrossEncoder:
-        return CrossEncoder(self.model_name, device="cpu")
+        # Use all physical CPU cores — torch otherwise defaults to half, which
+        # roughly doubles latency for this 568M cross-encoder on CPU.
+        torch.set_num_threads(os.cpu_count() or 4)
+        # max_length caps the (query + chunk) token window the cross-encoder
+        # scores. The default (512) is ~2x slower on CPU; 256 keeps the rule's
+        # key content (title + opening clauses sit first) while making
+        # reranking interactive on this hardware.
+        return CrossEncoder(self.model_name, max_length=256, device="cpu")
 
     def rerank(
         self, query: str, candidates: list[dict], top_k: int
