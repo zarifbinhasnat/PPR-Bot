@@ -12,6 +12,7 @@ __pycache__/
 data/pages_images/
 data/pages_markdown/
 data/processed/
+data/models/
 *.npy
 *.pkl
 

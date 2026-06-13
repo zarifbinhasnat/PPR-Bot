@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     GEMINI_AUX_MODEL: str = "gemini-flash-latest"
 
     # --- Local models ---
+    # These are HuggingFace repo ids by default. If the weights have been
+    # pre-downloaded into data/models/<name>/ (see scripts/download_models.py),
+    # the resolved *_model_ref properties below point at that local directory
+    # instead, so loading works fully offline — useful when the HF Hub
+    # downloader can't run (e.g. a network that stalls on its chunked
+    # transfer protocol).
     EMBEDDING_MODEL_NAME: str = "BAAI/bge-m3"
     RERANKER_MODEL_NAME: str = "BAAI/bge-reranker-v2-m3"
 
@@ -50,6 +56,26 @@ class Settings(BaseSettings):
     @property
     def data_dir(self) -> Path:
         return PROJECT_ROOT / "data"
+
+    @property
+    def models_dir(self) -> Path:
+        return self.data_dir / "models"
+
+    @property
+    def embedding_model_ref(self) -> str:
+        """Local bge-m3 dir if its weights are present, else the HF repo id."""
+        local = self.models_dir / "bge-m3"
+        if (local / "pytorch_model.bin").exists():
+            return str(local)
+        return self.EMBEDDING_MODEL_NAME
+
+    @property
+    def reranker_model_ref(self) -> str:
+        """Local reranker dir if its weights are present, else the HF repo id."""
+        local = self.models_dir / "bge-reranker-v2-m3"
+        if (local / "model.safetensors").exists():
+            return str(local)
+        return self.RERANKER_MODEL_NAME
 
     @property
     def pages_images_dir(self) -> Path:
