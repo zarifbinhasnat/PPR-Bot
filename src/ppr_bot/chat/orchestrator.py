@@ -43,7 +43,9 @@ class ChatOrchestrator:
         self.memory = memory
         self.client = client
 
-    def handle_turn(self, session_id: str, message: str) -> Iterator[dict]:
+    def handle_turn(
+        self, session_id: str, message: str, rerank: bool = True
+    ) -> Iterator[dict]:
         """Process one user message, yielding event dicts.
 
         Event shapes (consumed by the API/SSE layer):
@@ -61,8 +63,8 @@ class ChatOrchestrator:
         )
         yield {"type": "query", "query": standalone}
 
-        # 3. Retrieve relevant chunks.
-        chunks = self.pipeline.retrieve(standalone)
+        # 3. Retrieve relevant chunks (rerank is toggleable from the UI).
+        chunks = self.pipeline.retrieve(standalone, rerank=rerank)
         yield {
             "type": "citations",
             "citations": [

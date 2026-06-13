@@ -16,6 +16,13 @@ class ChatRequest(BaseModel):
         default="default",
         description="Conversation id; same id = continued conversation",
     )
+    rerank: bool = Field(
+        default=True,
+        description=(
+            "Whether to run the cross-encoder reranker. Off = faster but "
+            "slightly less precise ordering (hybrid search only)."
+        ),
+    )
 
 
 class Turn(BaseModel):

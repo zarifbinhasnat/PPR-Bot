@@ -43,10 +43,16 @@ class RetrievalPipeline:
         self.vector_store = NumpyVectorStore.load(settings.embeddings_path, chunk_ids)
         self.bm25_index = BM25Index.load(settings.bm25_index_path)
 
-    def retrieve(self, query: str, top_k: int | None = None) -> list[dict]:
+    def retrieve(
+        self, query: str, top_k: int | None = None, rerank: bool = True
+    ) -> list[dict]:
         """Return the most relevant chunk records for a query, best-first.
 
-        Each returned record is the stored chunk dict plus a `rerank_score`.
+        When `rerank` is True each record gets a `rerank_score` from the
+        cross-encoder. When False we skip the (CPU-expensive) reranker and
+        return the hybrid-search/RRF ordering directly — much faster, with
+        slightly less precise top-k ordering. The retrieved *content* is the
+        same; only the ordering differs.
         """
         top_k = top_k or settings.TOP_K_RERANK
 
@@ -60,8 +66,10 @@ class RetrievalPipeline:
             rrf_k=settings.RRF_K,
         )
 
-        # Hydrate the fused ids into full chunk records for reranking.
+        # Hydrate the fused ids into full chunk records (already RRF-sorted).
         candidates = [
             self.chunks_by_id[cid] for cid, _ in fused if cid in self.chunks_by_id
         ]
+        if not rerank:
+            return candidates[:top_k]
         return self.reranker.rerank(query, candidates, top_k=top_k)

@@ -53,7 +53,9 @@ async def chat(request: Request, body: ChatRequest) -> EventSourceResponse:
         # blocking step in a thread so we don't stall the event loop, while
         # still streaming results out as they're produced.
         loop = asyncio.get_event_loop()
-        generator = orchestrator.handle_turn(body.session_id, body.message)
+        generator = orchestrator.handle_turn(
+            body.session_id, body.message, rerank=body.rerank
+        )
 
         def _next():
             # Pull one event from the sync generator (StopIteration -> None).

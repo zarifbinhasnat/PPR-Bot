@@ -30,6 +30,11 @@ const statusLine = document.getElementById("status-line");
 // A stable id so the backend treats this tab as one ongoing conversation.
 const sessionId = "web-" + Math.random().toString(36).slice(2);
 
+// Cross-encoder reranking toggle. ON = more precise ordering but slow on CPU;
+// OFF = much faster (hybrid search only). Persisted across reloads. Sent to
+// the backend with every /chat request.
+let rerankEnabled = localStorage.getItem("ppr_rerank") !== "false";
+
 // Starter suggestions shown under the welcome message. Each chip just sends
 // its label as a real query.
 const QUICK_REPLIES = [
@@ -316,6 +321,30 @@ function openInfoSheet() {
       sheet.appendChild(row);
     });
 
+    // --- Reranking toggle ---------------------------------------------------
+    const toggleRow = document.createElement("div");
+    toggleRow.className = "toggle-row";
+    const txt = document.createElement("div");
+    txt.innerHTML =
+      '<div class="toggle-row__title">Precise reranking</div>' +
+      '<div class="toggle-row__sub">More accurate ordering, but slower on CPU. ' +
+      "Turn off for faster answers.</div>";
+    const sw = document.createElement("button");
+    sw.type = "button";
+    sw.className = "switch" + (rerankEnabled ? " is-on" : "");
+    sw.setAttribute("role", "switch");
+    sw.setAttribute("aria-checked", String(rerankEnabled));
+    sw.innerHTML = '<span class="switch__knob"></span>';
+    sw.addEventListener("click", () => {
+      rerankEnabled = !rerankEnabled;
+      localStorage.setItem("ppr_rerank", String(rerankEnabled));
+      sw.classList.toggle("is-on", rerankEnabled);
+      sw.setAttribute("aria-checked", String(rerankEnabled));
+    });
+    toggleRow.appendChild(txt);
+    toggleRow.appendChild(sw);
+    sheet.appendChild(toggleRow);
+
     const close = document.createElement("button");
     close.className = "sheet__close";
     close.textContent = "Close";
@@ -361,7 +390,7 @@ async function ask(message) {
   const response = await fetch("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, session_id: sessionId }),
+    body: JSON.stringify({ message, session_id: sessionId, rerank: rerankEnabled }),
   });
 
   if (!response.ok || !response.body) {
