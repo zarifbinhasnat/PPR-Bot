@@ -52,10 +52,30 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Minimal, safe markdown: escape everything, then re-enable **bold**.
-// Newlines/bullets are preserved by the bubble's `white-space: pre-wrap`.
+// Minimal, safe Markdown -> HTML for bot answers. We escape everything first
+// (so model output can't inject HTML), then render the small subset of
+// Markdown the model actually emits: bullet lists (`* ` / `- `), **bold**, and
+// *italic*. Line structure + indentation is preserved by the bubble's
+// `white-space: pre-wrap`.
+function formatInline(s) {
+  // Bold FIRST so its `**` pairs are consumed before the single-`*` italic
+  // pass runs (otherwise italic would chew into bold markers).
+  return s
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/\*(\S.*?\S|\S)\*/g, "<i>$1</i>");
+}
+
 function formatText(text) {
-  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  return escapeHtml(text)
+    .split("\n")
+    .map((line) => {
+      // Bullet line: optional indent, then `*` or `-`, then a space. Turn the
+      // marker into a real bullet glyph; keep the indent for nested levels.
+      const m = line.match(/^(\s*)[*-]\s+(.*)$/);
+      if (m) return m[1] + "• " + formatInline(m[2]);
+      return formatInline(line);
+    })
+    .join("\n");
 }
 
 function nowTime() {
