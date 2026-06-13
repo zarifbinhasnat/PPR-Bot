@@ -34,7 +34,9 @@ BANGLA = re.compile(r"[ঀ-৿]")
 # Latin-1 supplement letters + the specific symbol glyphs SutonnyMJ mojibake
 # produces. Clean Bangla/English almost never uses these.
 SUSPICIOUS = re.compile(r"[À-ÿ†‡•‘’“”´`ˆ˜]")
-REPEAT_RUN = re.compile(r"(.)\1{29,}")
+# Only NON-whitespace runs signal a degenerate loop. Long runs of spaces are
+# just the gazette's header/page-number alignment padding — harmless.
+REPEAT_RUN = re.compile(r"([^\s])\1{29,}")
 
 NEAR_EMPTY_BYTES = 40
 SUSPICIOUS_RATIO_FLAG = 0.04  # >4% weird symbols = likely mojibake
