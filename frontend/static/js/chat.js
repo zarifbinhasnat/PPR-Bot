@@ -309,12 +309,16 @@ function openInfoSheet() {
 // Parse a raw SSE buffer into complete {event, data} frames, returning any
 // leftover partial text to carry into the next read.
 function parseSSE(buffer, onMessage) {
-  const parts = buffer.split("\n\n");
+  // Frames are separated by a blank line. Be CRLF-tolerant: the server
+  // (sse-starlette) emits "\r\n\r\n" separators, which a plain "\n\n" split
+  // would NOT match — silently dropping every event. Split on \r?\n\r?\n,
+  // and parse each frame's lines on \r?\n.
+  const parts = buffer.split(/\r?\n\r?\n/);
   const remainder = parts.pop(); // last piece may be incomplete
   for (const part of parts) {
     let event = "message";
     let data = "";
-    for (const line of part.split("\n")) {
+    for (const line of part.split(/\r?\n/)) {
       if (line.startsWith("event:")) event = line.slice(6).trim();
       else if (line.startsWith("data:")) data += line.slice(5).trim();
     }
