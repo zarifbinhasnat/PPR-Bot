@@ -34,9 +34,11 @@ BANGLA = re.compile(r"[ঀ-৿]")
 # Latin-1 supplement letters + the specific symbol glyphs SutonnyMJ mojibake
 # produces. Clean Bangla/English almost never uses these.
 SUSPICIOUS = re.compile(r"[À-ÿ†‡•‘’“”´`ˆ˜]")
-# Only NON-whitespace runs signal a degenerate loop. Long runs of spaces are
-# just the gazette's header/page-number alignment padding — harmless.
-REPEAT_RUN = re.compile(r"([^\s])\1{29,}")
+# A real degenerate loop is the same LETTER/glyph repeated many times. Long
+# runs of whitespace (header padding) or structural punctuation — Markdown
+# table separators "|:------|", leader dots, underscores, horizontal rules —
+# are legitimate, so we exclude those characters from the check.
+REPEAT_RUN = re.compile(r"([^\s\-=|:._*#~/\\+])\1{29,}")
 
 NEAR_EMPTY_BYTES = 40
 SUSPICIOUS_RATIO_FLAG = 0.04  # >4% weird symbols = likely mojibake
