@@ -62,10 +62,24 @@ def _page_markdown_path(page_number: int) -> Path:
     return settings.pages_markdown_dir / f"page_{page_number:03d}.md"
 
 
+def _is_quota_error(exc: Exception) -> bool:
+    s = str(exc)
+    return "RESOURCE_EXHAUSTED" in s or "429" in s
+
+
 def extract_pages(start: int, end: int, resume: bool) -> None:
-    """Render + OCR pages [start, end] (1-indexed, inclusive)."""
+    """Render + OCR pages [start, end] (1-indexed, inclusive).
+
+    Supports KEY ROTATION: when the active key's daily quota is exhausted on
+    all models, we switch to the next configured key (settings.gemini_api_keys)
+    and retry the same page. Only when every key is spent do we stop — leaving
+    the job resumable for the next quota reset.
+    """
     settings.pages_markdown_dir.mkdir(parents=True, exist_ok=True)
-    client = get_client()
+    keys = settings.gemini_api_keys or [settings.GEMINI_API_KEY]
+    key_idx = 0
+    client = get_client(api_key=keys[key_idx])
+    print(f"Using API key 1 of {len(keys)}")
     manifest = _load_manifest()
 
     for page_number in range(start, end + 1):
@@ -84,39 +98,51 @@ def extract_pages(start: int, end: int, resume: bool) -> None:
             print(f"[skip] page {page_number} already done")
             continue
 
-        t0 = time.time()
+        # Render once (cheap, no quota); re-used across any key switches.
         try:
-            # Render this single page (cheap) then OCR it.
             (image_path,) = render_pdf_to_images(
-                settings.pdf_path,
-                settings.pages_images_dir,
-                dpi=150,
+                settings.pdf_path, settings.pages_images_dir, dpi=150,
                 pages=[page_number],
             )
-            markdown = transcribe_page(
-                image_path, client, settings.GEMINI_OCR_MODEL
-            )
-            out_path.write_text(markdown, encoding="utf-8")
-            manifest[key] = "done"
-            print(f"[ok]   page {page_number} ({time.time() - t0:.1f}s)")
         except Exception as exc:
-            manifest[key] = f"error: {exc}"
-            print(f"[FAIL] page {page_number}: {exc}")
+            manifest[key] = f"error: render {exc}"
+            print(f"[FAIL] page {page_number}: render {exc}")
             _save_manifest(manifest)
-            # If we've exhausted the daily free quota, every remaining page
-            # will fail the same way — stop now instead of churning through
-            # hundreds of doomed retries. The run is resumable, so tomorrow's
-            # `--resume` continues from here.
-            if "RESOURCE_EXHAUSTED" in str(exc) or "429" in str(exc):
-                print(
-                    "\nDaily free quota appears exhausted. Stopping. "
-                    "Re-run with --resume after the quota resets "
-                    "(midnight US Pacific time)."
-                )
-                return
             continue
-        finally:
-            _save_manifest(manifest)  # persist after every page
+
+        t0 = time.time()
+        while True:  # transcribe, rotating keys on quota exhaustion
+            try:
+                markdown = transcribe_page(
+                    image_path, client, settings.GEMINI_OCR_MODEL
+                )
+                out_path.write_text(markdown, encoding="utf-8")
+                manifest[key] = "done"
+                print(f"[ok]   page {page_number} ({time.time() - t0:.1f}s)")
+                _save_manifest(manifest)
+                break
+            except Exception as exc:
+                # Quota exhausted on the current key? Try the next key and
+                # retry THIS page, rather than losing it.
+                if _is_quota_error(exc) and key_idx + 1 < len(keys):
+                    key_idx += 1
+                    print(
+                        f"\nKey {key_idx} of {len(keys)} exhausted — switching "
+                        f"to key {key_idx + 1}."
+                    )
+                    client = get_client(api_key=keys[key_idx])
+                    continue
+                manifest[key] = f"error: {exc}"
+                print(f"[FAIL] page {page_number}: {exc}")
+                _save_manifest(manifest)
+                if _is_quota_error(exc):
+                    print(
+                        "\nAll API keys' daily free quota appear exhausted. "
+                        "Stopping. Re-run with --resume after the quota resets "
+                        "(midnight US Pacific time)."
+                    )
+                    return
+                break  # non-quota error: give up on this page, move on
 
 
 def concat_full_document() -> None:

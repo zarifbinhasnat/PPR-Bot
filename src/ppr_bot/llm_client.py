@@ -26,9 +26,15 @@ from ppr_bot.config import settings
 DEFAULT_TIMEOUT_MS = 60_000
 
 
-def get_client(timeout_ms: int = DEFAULT_TIMEOUT_MS) -> genai.Client:
-    """Return a configured Gemini client with a bounded request timeout."""
+def get_client(
+    timeout_ms: int = DEFAULT_TIMEOUT_MS, api_key: str | None = None
+) -> genai.Client:
+    """Return a configured Gemini client with a bounded request timeout.
+
+    `api_key` overrides the default (settings.GEMINI_API_KEY) — used by the
+    OCR key-rotation, which builds one client per key.
+    """
     return genai.Client(
-        api_key=settings.GEMINI_API_KEY,
+        api_key=api_key or settings.GEMINI_API_KEY,
         http_options=types.HttpOptions(timeout=timeout_ms),
     )

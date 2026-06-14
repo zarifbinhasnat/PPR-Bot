@@ -24,6 +24,10 @@ class Settings(BaseSettings):
 
     # --- Gemini API ---
     GEMINI_API_KEY: str = ""
+    # Optional extra keys for OCR key-rotation (each is a separate free-tier
+    # daily-quota bucket). Empty ones are ignored.
+    GEMINI_API_KEY_2: str = ""
+    GEMINI_API_KEY_3: str = ""
     GEMINI_OCR_MODEL: str = "gemini-flash-latest"
     GEMINI_CHAT_MODEL: str = "gemini-flash-latest"
     GEMINI_AUX_MODEL: str = "gemini-flash-latest"
@@ -47,6 +51,12 @@ class Settings(BaseSettings):
     # --- Chunking ---
     CHUNK_MAX_TOKENS: int = 512
     CHUNK_OVERLAP_TOKENS: int = 64
+
+    @property
+    def gemini_api_keys(self) -> list[str]:
+        """All configured Gemini keys, in rotation order, skipping blanks."""
+        keys = [self.GEMINI_API_KEY, self.GEMINI_API_KEY_2, self.GEMINI_API_KEY_3]
+        return [k for k in keys if k]
 
     # --- Paths (derived, not from .env) ---
     @property
