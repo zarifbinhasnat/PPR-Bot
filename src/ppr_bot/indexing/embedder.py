@@ -13,6 +13,7 @@ The model (~2.2GB) is downloaded automatically on first use and cached.
 """
 
 import os
+import unicodedata
 from functools import cached_property
 
 import numpy as np
@@ -48,7 +49,11 @@ class Embedder:
         normalize_embeddings=True scales each vector to unit length, so a
         plain dot product between two vectors equals their cosine similarity
         — which is what our vector store uses for ranking.
+
+        NFC-normalizes each text so decomposed Bangla codepoints from OCR
+        inconsistency are unified before encoding.
         """
+        texts = [unicodedata.normalize("NFC", t) for t in texts]
         return self._model.encode(
             texts,
             batch_size=batch_size,

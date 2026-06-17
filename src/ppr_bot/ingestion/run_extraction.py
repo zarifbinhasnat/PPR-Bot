@@ -48,7 +48,7 @@ def _manifest_path() -> Path:
 def _load_manifest() -> dict:
     path = _manifest_path()
     if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8-sig"))
     return {}
 
 

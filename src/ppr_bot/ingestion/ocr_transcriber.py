@@ -17,6 +17,7 @@ other capable vision models that tend to be overloaded at different times.
 
 import re
 import time
+import unicodedata
 from pathlib import Path
 
 from google import genai
@@ -87,7 +88,7 @@ def transcribe_page(
                     model=model_name,
                     contents=[image_part, OCR_TRANSCRIPTION_PROMPT],
                 )
-                text = (response.text or "").strip()
+                text = unicodedata.normalize("NFC", (response.text or "").strip())
                 # An empty 200-OK response is NOT success: Gemini occasionally
                 # returns no text (transient hiccup / soft throttle / safety
                 # filter). If we returned "" here, the orchestrator would save a

@@ -22,6 +22,10 @@ from ppr_bot.config import settings
 from ppr_bot.enrichment.contextualizer import build_indexed_text, generate_context
 from ppr_bot.llm_client import get_client
 
+def _build_clients():
+    """One client per configured API key, in rotation order."""
+    return [get_client(api_key=k) for k in settings.gemini_api_keys]
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
@@ -47,7 +51,8 @@ def main() -> None:
         raise SystemExit(f"{settings.chunks_path} not found. Run chunking first.")
 
     chunks = _load_chunks()
-    client = get_client()
+    clients = _build_clients()
+    print(f"Using {len(clients)} API key(s) with model rotation.")
 
     targets = chunks if args.limit is None else chunks[: args.limit]
     done = 0
@@ -56,7 +61,7 @@ def main() -> None:
             continue  # already enriched — resume support
         breadcrumb = chunk.get("metadata", {}).get("breadcrumb", "")
         blurb = generate_context(
-            chunk["text"], breadcrumb, client, settings.GEMINI_AUX_MODEL
+            chunk["text"], breadcrumb, clients, settings.GEMINI_AUX_MODEL
         )
         chunk["contextual_summary"] = blurb
         chunk["indexed_text"] = build_indexed_text(blurb, chunk["text"])

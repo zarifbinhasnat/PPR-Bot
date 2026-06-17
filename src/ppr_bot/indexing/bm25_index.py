@@ -17,6 +17,7 @@ known simplification (no Bangla stemming/normalization); good enough for v1.
 
 import pickle
 import re
+import unicodedata
 
 from rank_bm25 import BM25Okapi
 
@@ -26,8 +27,13 @@ _TOKEN_RE = re.compile(r"[\wঀ-৿]+", re.UNICODE)
 
 
 def simple_tokenize(text: str) -> list[str]:
-    """Lowercase + split into word tokens. Works for Bangla + English."""
-    return _TOKEN_RE.findall(text.lower())
+    """Lowercase + split into word tokens. Works for Bangla + English.
+
+    NFC-normalizes first so decomposed Bangla codepoints (e.g. YA+NUKTA)
+    match their precomposed equivalents (YYA) — OCR inconsistency across
+    pages would otherwise silently break keyword search.
+    """
+    return _TOKEN_RE.findall(unicodedata.normalize("NFC", text).lower())
 
 
 class BM25Index:

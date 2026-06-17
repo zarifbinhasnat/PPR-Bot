@@ -40,17 +40,16 @@ FALLBACK_MODELS = [
 def generate_context(
     chunk_text: str,
     breadcrumb: str,
-    client: genai.Client,
+    clients: list[genai.Client],
     model: str,
     max_retries: int = 4,
     retry_delay_seconds: float = 6.0,
 ) -> str:
     """Return a short situating blurb for one chunk (empty string on failure).
 
-    Failure here is non-fatal: if every model/retry fails, we index the
-    chunk without a blurb rather than abort the whole job. The empty string
-    is "falsy", so run_enrichment's resume check (`if chunk.get(...)`)
-    correctly retries this chunk on the next run.
+    Rotates through all configured API keys AND all fallback models before
+    giving up — mirroring the OCR key-rotation pattern. Empty string on total
+    exhaustion; the resume check in run_enrichment retries it next run.
     """
     models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
     prompt = CONTEXTUALIZE_CHUNK_PROMPT.format(
@@ -58,32 +57,34 @@ def generate_context(
     )
 
     last_error: Exception | None = None
-    for model_name in models_to_try:
-        for attempt in range(1, max_retries + 1):
-            try:
-                response = client.models.generate_content(
-                    model=model_name, contents=prompt
-                )
-                text = (response.text or "").strip()
-                if not text:
-                    raise RuntimeError("empty contextualization response")
-                return text
-            except Exception as exc:
-                last_error = exc
-                err_str = str(exc)
-                if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
-                    # This model's daily quota is gone — move on to the next
-                    # model immediately rather than retrying with backoff.
-                    break
-                if attempt < max_retries:
-                    time.sleep(retry_delay_seconds * attempt)
+    for key_idx, client in enumerate(clients):
+        for model_name in models_to_try:
+            for attempt in range(1, max_retries + 1):
+                try:
+                    response = client.models.generate_content(
+                        model=model_name, contents=prompt
+                    )
+                    text = (response.text or "").strip()
+                    if not text:
+                        raise RuntimeError("empty contextualization response")
+                    return text
+                except Exception as exc:
+                    last_error = exc
+                    err_str = str(exc)
+                    if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
+                        # This model's quota on this key is gone — next model.
+                        break
+                    if attempt < max_retries:
+                        time.sleep(retry_delay_seconds * attempt)
+        if key_idx + 1 < len(clients):
+            print(
+                f"[enrich] key {key_idx + 1} exhausted — switching to key {key_idx + 2}.",
+                file=sys.stderr,
+            )
 
-    # Don't fail silently: print so the operator can see *why* a chunk has
-    # no contextual_summary (we lost time to exactly this kind of silent
-    # swallow once already — see scripts/diag_quota.py history).
     print(
         f"[warn] contextualization failed for chunk "
-        f"({breadcrumb!r}, tried {models_to_try}): {last_error}",
+        f"({breadcrumb!r}, tried {len(clients)} key(s) × {models_to_try}): {last_error}",
         file=sys.stderr,
     )
     return ""  # give up gracefully; chunk still gets indexed un-contextualized
